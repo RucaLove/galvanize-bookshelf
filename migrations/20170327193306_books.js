@@ -6,7 +6,6 @@ exports.up = function(knex) {
     table.string('author').notNullable().defaultTo('');
     table.string('genre').notNullable().defaultTo('');
     table.text('description').notNullable().defaultTo('');
-    table.text('cover_url').notNullable().defaultTo('');
     table.timestamps(true, true);
   })
 };
