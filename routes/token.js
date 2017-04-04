@@ -5,65 +5,50 @@ const express = require('express');
 // eslint-disable-next-line new-cap
 const router = express.Router();
 const knex = require('../knex');
+const jwt = require('jsonwebtoken');
 const humps = require('humps');
 const bcrypt = require('bcrypt');
-const app = express();
+// const app = express();
+const boom = ('boom');
+const logger = require('morgan');
 
 const cookieSession = require('cookie-session');
-const jwt = require('jsonwebtoken');
+const cookieParser = require('cookie-parser');
+const bodyParser = require('body-parser');
+// require('dotenv').config();
+// const token = require('./routes/token');
 
-app.use(cookieSession({
-  name: 'session',
-  keys: ['email','password'],
-
-  // Cookie Options
-  maxAge: 24 * 60 * 60 * 1000 // 24 hours
-}))
-
-app.get('/token',(req,res,next) => {
-  // Normally check req.body and verify username/password in DB.
-
-  var token = jwt.sign ({ loggedIn: true, isAdmin:true }, 'shhhh');
-
-  req.session.jwt = token;
-  res.send();
+router.get('/token', (req, res, next) => {
+  if (req.cookies.token) {
+    res.status(200);
+    res.send(true);
+  }
+  else {
+    res.status(200);
+    res.send(false);
+  }
 });
 
-app.get('/token',loggedIn,isAdmin,(req,res,next) => {
-  res.send('You should be logged in to see this.')
-});
+router.post('/token', (req, res, next) => {
+  knex('users')
+    .where('email', req.body.email)
+    .then((users) => {
+      const match = bcrypt.compareSync(req.body.password, users[0].hashed_password)
+      if (match === true) {
+        delete users[0].hashed_password;
+        const token = jwt.sign(users[0], process.env.JWT_KEY);
 
-app.get('/token',(req,res,next) => {
-  res.send('You suck and are not authenticated.')
-});
-
-function loggedIn(req,res,next) {
-  if (req.session.jwt) {
-    jwt.verify(req.session.jwt, 'shhhh', function(err, decoded) {
-      if (err) {
-        res.sendStatus(403);
-      } else {
-        req.user = decoded;
-        next();
+        res.cookie('token', token, { httpOnly:true });
+        res.status(200);
+        res.send(humps.camelizeKeys(users[0]));
       }
     });
-  }
-  else {
-    res.sendStatus(403);
-  }
-}
+});
 
-function isAdmin(req,res,next) {
-  if (req.user && req.user.isAdmin) {
-    next();
-  }
-  else {
-    next('route');
-  }
-}
-
-app.listen('3000',() => {
-  console.log('Listening on port 3000');
-})
+router.delete('/token', function(req, res, next) {
+  res.clearCookie('token');
+  res.status(200);
+  res.send(true);
+});
 
 module.exports = router;
