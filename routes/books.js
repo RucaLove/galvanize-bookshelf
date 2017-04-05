@@ -70,7 +70,7 @@ router.patch('/books/:id', (req, res, next) => {
             author: req.body.author,
             genre: req.body.genre,
             description: req.body.description,
-            cover_url: req.body.coverUrl,
+            cover_url: req.body.coverUrl
         })
         .returning('*')
         .then((book) => {
