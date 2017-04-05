@@ -22,7 +22,7 @@ router.get('/favorites', (req, res, next) => {
     .join('books', 'books.id', 'book_id')
     .then((favs) => {
       res.send(humps.camelizeKeys(favs));
-    })
+    });
   }
 });
 
@@ -49,20 +49,48 @@ router.post('/favorites', (req, res, next) => {
   if (!req.cookies.token) {
     return next(boom.create(401, 'Unauthorized'))
   }
-  else {
-    knex('favorites')
-    .then((favs) => {
+    knex.raw("select setval('favorites_id_seq', (select max(id) from favorites))")
+    .then(
       knex('favorites')
         .insert({
           id: req.body.id,
           book_id: req.body.bookId,
-          user_id: req.body.userId
+          user_id: 1
         })
         .returning('*')
         .then((favs1) => {
-          res.json(humps.camelizeKeys(favs1[0]));
+          res.send(humps.camelizeKeys(favs1[0]));
         })
-    })
+    );
+});
+
+router.delete('/favorites/:id', (req, res, next) => {
+  if (!req.cookies.token) {
+    return next(boom.create(401, 'Unauthorized'))
+  }
+  else {
+    let favs;
+    knex('favorites')
+        .where('id', req.params.id)
+        .first()
+        .then((row) => {
+          if (!row) {
+              return next();
+            }
+
+          favs = row;
+
+          return knex('favorites')
+                .del()
+                .where('id', req.params.id);
+        })
+        .then(() => {
+          delete favs.id[0];
+          res.send(humps.camelizeKeys(favs[0]));
+          res.clearCookie('token');
+          res.status(200);
+          res.send(true);
+        })
   }
 });
 
